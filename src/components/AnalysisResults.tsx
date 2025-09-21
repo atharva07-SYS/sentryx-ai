@@ -188,6 +188,24 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
     }
   };
 
+  // Add: Final Verdict helpers (text + color)
+  const getFinalVerdict = () => {
+    const score = report.credibilityScore ?? 0;
+    if (report.deepfakeStatus === "fake") return { text: "Fake Detected — Do not trust", tone: "danger" as const };
+    if (score >= 80) return { text: "Safe to Share — Highly credible", tone: "success" as const };
+    if (score >= 60) return { text: "Safe to Read — Cross-check key claims", tone: "warning" as const };
+    if (score >= 40) return { text: "Caution Advised — Verify before sharing", tone: "warning" as const };
+    return { text: "Fake Detected — High risk of misinformation", tone: "danger" as const };
+  };
+
+  const verdict = getFinalVerdict();
+  const bannerToneClasses =
+    verdict.tone === "success"
+      ? "from-green-500/20 via-emerald-500/10 to-green-400/20 border-green-400/40 text-green-300"
+      : verdict.tone === "warning"
+      ? "from-yellow-500/20 via-amber-500/10 to-yellow-400/20 border-yellow-400/40 text-yellow-300"
+      : "from-red-500/20 via-rose-500/10 to-red-400/20 border-red-400/40 text-red-300";
+
   return (
     <TooltipProvider>
       <motion.div
@@ -268,7 +286,7 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
           <Tabs defaultValue="summary" className="w-full">
             <TabsList className="glass-card">
               <TabsTrigger value="summary">Summary</TabsTrigger>
-              <TabsTrigger value="proof">Proof</TabsTrigger>
+              <TabsTrigger value="proof">Sources</TabsTrigger>
               <TabsTrigger value="deepfake">Deepfake Check</TabsTrigger>
               <TabsTrigger value="recommendation">Recommendation</TabsTrigger>
             </TabsList>
@@ -377,7 +395,7 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
             <TabsContent value="proof" className="mt-6 space-y-4">
               <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-400" />
-                Proof ({report.verifiedSources.length})
+                Sources ({report.verifiedSources.length})
               </h3>
               <div className="space-y-3">
                 {report.verifiedSources.map((source, index) => (
@@ -390,7 +408,9 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1">
-                        <h4 className="font-medium text-green-300 mb-1">{source.title}</h4>
+                        <h4 className="font-medium text-green-300 mb-1">
+                          {source.title}
+                        </h4>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="glass-card border-0">
                             {Math.round(source.credibility * 100)}% credible
@@ -533,6 +553,31 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
             </p>
           </div>
         </GlassCard>
+
+        {/* Add: Final Verdict Banner (glowing strip) */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div
+            className={`mt-2 rounded-xl border glass-strong neon-border overflow-hidden`}
+          >
+            <div
+              className={`px-4 py-3 text-center text-sm font-semibold bg-gradient-to-r ${bannerToneClasses}`}
+            >
+              🛡️ Final Verdict: {verdict.text}
+            </div>
+            <div className="h-1 w-full bg-black/30 relative overflow-hidden">
+              <motion.div
+                className="absolute inset-y-0 left-0 bg-primary/60"
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.max(0, Math.min(100, report.credibilityScore))}%` }}
+                transition={{ duration: 1.2 }}
+              />
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
     </TooltipProvider>
   );

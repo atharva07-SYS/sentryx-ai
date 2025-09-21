@@ -19,12 +19,14 @@ import {
   Sun,
   Moon
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { useState, useEffect, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
+import { Linkedin, Globe as GlobeIcon } from "lucide-react";
 
 export default function Landing() {
   const { isLoading: authLoading, isAuthenticated, user } = useAuth();
@@ -33,6 +35,8 @@ export default function Landing() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [liveDemoUrl, setLiveDemoUrl] = useState("");
+  const [showDemoHint, setShowDemoHint] = useState(false);
 
   const createReport = useMutation(api.detectionReports.createReport);
   const analyzeContent = useAction(api.analysisActions.analyzeContent);
@@ -95,14 +99,15 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Background Gradient Orbs */}
+      {/* AI Grid + Gradient Orbs */}
+      <div className="ai-grid" />
       <div className="gradient-orb gradient-orb-1" />
       <div className="gradient-orb gradient-orb-2" />
       <div className="gradient-orb gradient-orb-3" />
       
       {/* Navigation */}
       <motion.nav
-        className="relative z-50 glass-strong border-b border-white/10"
+        className="sticky top-0 backdrop-blur-md bg-black/10 border-b border-white/10 z-50"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -113,15 +118,24 @@ export default function Landing() {
               <div className="p-2 rounded-lg bg-primary/20 glow">
                 <Shield className="h-8 w-8 text-primary" />
               </div>
-              <span className="text-2xl font-bold tracking-tight">SentryX</span>
+              <a href="#hero" className="text-2xl font-bold tracking-tight">SentryX</a>
             </div>
             
             <div className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
                 Features
               </a>
+              <a href="#live-demo" className="text-muted-foreground hover:text-foreground transition-colors">
+                Live Demo
+              </a>
               <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                 How it Works
+              </a>
+              <a href="#pitch" className="text-muted-foreground hover:text-foreground transition-colors">
+                Pitch
+              </a>
+              <a href="#team" className="text-muted-foreground hover:text-foreground transition-colors">
+                Team
               </a>
               <Button
                 variant="ghost"
@@ -169,8 +183,17 @@ export default function Landing() {
               <a href="#features" className="block text-muted-foreground hover:text-foreground transition-colors">
                 Features
               </a>
+              <a href="#live-demo" className="block text-muted-foreground hover:text-foreground transition-colors">
+                Live Demo
+              </a>
               <a href="#how-it-works" className="block text-muted-foreground hover:text-foreground transition-colors">
                 How it Works
+              </a>
+              <a href="#pitch" className="block text-muted-foreground hover:text-foreground transition-colors">
+                Pitch
+              </a>
+              <a href="#team" className="block text-muted-foreground hover:text-foreground transition-colors">
+                Team
               </a>
               <Button
                 variant="ghost"
@@ -216,36 +239,35 @@ export default function Landing() {
         ) : (
           <>
             {/* Hero Section */}
-            <section className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
+            <section id="hero" className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
               <motion.div
-                className="max-w-4xl mx-auto space-y-8"
+                className="max-w-5xl mx-auto space-y-10"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
                 <div className="space-y-6">
                   <motion.div
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm neon-border"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
                   >
                     <Zap className="h-4 w-4 text-primary" />
-                    AI-Powered Truth Detection
+                    SentryX: AI Sentinel Against Misinformation
                   </motion.div>
                   
                   <motion.h1
-                    className="text-5xl md:text-7xl font-bold tracking-tight"
+                    className="text-5xl md:text-7xl font-bold tracking-tight leading-tight"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                   >
-                    Combat{" "}
-                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      Misinformation
-                    </span>
+                    Cut through the noise with
                     <br />
-                    with SentryX
+                    <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+                      Real-time Truth Detection
+                    </span>
                   </motion.h1>
                   
                   <motion.p
@@ -254,40 +276,33 @@ export default function Landing() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
                   >
-                    Real-time misinformation & deepfake detection powered by advanced AI. 
-                    Verify content authenticity, detect manipulated media, and get credibility scores instantly.
+                    Verify articles, media, and claims with AI—instantly. Deepfake spotting, source verification, and credibility scoring in one place.
                   </motion.p>
                 </div>
 
-                {/* Analysis Form */}
-                <motion.div
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                >
-                  <AnalysisForm onSubmit={handleAnalysis} isLoading={isAnalyzing} />
-                </motion.div>
-
-                {/* Stats */}
-                <motion.div
-                  className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 }}
-                >
-                  <GlassCard className="text-center" hover>
-                    <div className="text-3xl font-bold text-primary mb-2">99.2%</div>
-                    <div className="text-sm text-muted-foreground">Detection Accuracy</div>
-                  </GlassCard>
-                  <GlassCard className="text-center" hover>
-                    <div className="text-3xl font-bold text-primary mb-2">&lt;3s</div>
-                    <div className="text-sm text-muted-foreground">Average Analysis Time</div>
-                  </GlassCard>
-                  <GlassCard className="text-center" hover>
-                    <div className="text-3xl font-bold text-primary mb-2">50M+</div>
-                    <div className="text-sm text-muted-foreground">Content Analyzed</div>
-                  </GlassCard>
-                </motion.div>
+                <div className="flex items-center justify-center gap-3">
+                  <Button
+                    onClick={() => {
+                      const el = document.getElementById("live-demo");
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="glass-strong border-0 glow neon-button"
+                    size="lg"
+                  >
+                    Try Live Demo
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="glass-card border-0"
+                    onClick={() => {
+                      const el = document.getElementById("features");
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    Explore Features
+                  </Button>
+                </div>
               </motion.div>
             </section>
 
@@ -304,68 +319,134 @@ export default function Landing() {
                     Advanced Detection Capabilities
                   </h2>
                   <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                    Comprehensive analysis tools to identify misinformation and manipulated content
+                    Interactive intelligence built to expose misinformation and deepfakes
                   </p>
                 </motion.div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid md:grid-cols-3 gap-8">
                   {[
                     {
-                      icon: Shield,
-                      title: "Credibility Scoring",
-                      description: "Get instant credibility scores from 0-100 based on source reliability, fact-checking, and content analysis."
+                      frontIcon: Globe,
+                      backIcon: CheckCircle,
+                      title: "Fake News Detection",
+                      front: "Scan articles and posts for misleading claims.",
+                      back: "AI flags risky language, validates sources, and surfaces credibility markers in seconds."
                     },
                     {
-                      icon: Eye,
-                      title: "Deepfake Detection",
-                      description: "Advanced AI algorithms detect manipulated images and videos with high accuracy."
+                      frontIcon: Eye,
+                      backIcon: AlertTriangle,
+                      title: "Deepfake Spotting",
+                      front: "Analyze images and videos for manipulation.",
+                      back: "Detect tampering patterns and get a \"real/fake/uncertain\" assessment with confidence."
                     },
                     {
-                      icon: Globe,
-                      title: "Source Verification",
-                      description: "Cross-reference claims with verified sources and fact-checking databases."
-                    },
-                    {
-                      icon: Zap,
-                      title: "Real-time Analysis",
-                      description: "Lightning-fast processing delivers results in seconds, not minutes."
-                    },
-                    {
-                      icon: CheckCircle,
-                      title: "Multi-format Support",
-                      description: "Analyze text, URLs, images, and videos all in one platform."
-                    },
-                    {
-                      icon: AlertTriangle,
-                      title: "Claim Flagging",
-                      description: "Automatically identify and highlight suspicious claims with confidence scores."
+                      frontIcon: Shield,
+                      backIcon: Zap,
+                      title: "Real-Time Truth Reports",
+                      front: "Instant, shareable credibility reports.",
+                      back: "Summaries, sources, and a dynamic score you can export and share."
                     }
-                  ].map((feature, index) => (
+                  ].map((card, i) => (
                     <motion.div
-                      key={index}
+                      key={i}
+                      className="flip"
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: index * 0.1 }}
+                      transition={{ delay: i * 0.1 }}
                     >
-                      <GlassCard hover className="h-full">
-                        <div className="p-2 rounded-lg bg-primary/20 w-fit mb-4">
-                          <feature.icon className="h-6 w-6 text-primary" />
+                      <div className="flip-inner rounded-2xl neon-border">
+                        <div className="flip-face glass-strong rounded-2xl p-6 h-full">
+                          <div className="p-2 rounded-lg bg-primary/20 w-fit mb-4">
+                            <card.frontIcon className="h-6 w-6 text-primary" />
+                          </div>
+                          <h3 className="text-xl font-bold mb-2">{card.title}</h3>
+                          <p className="text-muted-foreground">{card.front}</p>
                         </div>
-                        <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                        <p className="text-muted-foreground leading-relaxed">
-                          {feature.description}
-                        </p>
-                      </GlassCard>
+                        <div className="flip-face flip-back glass-strong rounded-2xl p-6 h-full absolute inset-0">
+                          <div className="p-2 rounded-lg bg-accent/20 w-fit mb-4">
+                            <card.backIcon className="h-6 w-6 text-accent" />
+                          </div>
+                          <h4 className="font-semibold mb-2">What you get</h4>
+                          <p className="text-muted-foreground">{card.back}</p>
+                        </div>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
               </div>
             </section>
 
-            {/* How it Works Section */}
+            {/* Live Demo Section */}
+            <section id="live-demo" className="py-20 px-4">
+              <div className="max-w-3xl mx-auto">
+                <motion.div
+                  className="text-center mb-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-4xl font-bold tracking-tight mb-3">
+                    Live Demo
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Paste a news URL and hit Scan. Watch the neon engine work.
+                  </p>
+                </motion.div>
+
+                <GlassCard variant="strong" className="neon-border">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Input
+                      placeholder="https://example.com/article"
+                      className="glass-card border-0"
+                      value={liveDemoUrl}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setLiveDemoUrl(e.target.value)}
+                      disabled={isAnalyzing}
+                      onFocus={() => setShowDemoHint(true)}
+                    />
+                    <Button
+                      onClick={() => handleAnalysis("url", liveDemoUrl)}
+                      disabled={isAnalyzing || !liveDemoUrl.trim()}
+                      className="neon-button glow glass-strong border-0"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <span className="ring mr-2" />
+                          Scanning...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="mr-2 h-4 w-4" />
+                          Scan
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {showDemoHint && !isAnalyzing && (
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Pro tip: Use a known news article URL to see source verification kick in.
+                    </p>
+                  )}
+                </GlassCard>
+
+                <div className="mt-8 grid md:grid-cols-3 gap-4">
+                  {[
+                    { label: "Sample Verdict", value: "Likely Credible", color: "text-green-400" },
+                    { label: "Avg. Scan Time", value: "<3s", color: "text-cyan-300" },
+                    { label: "Flags Found", value: "0-2", color: "text-purple-300" },
+                  ].map((item, idx) => (
+                    <GlassCard key={idx} className="text-center">
+                      <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
+                      <div className="text-sm text-muted-foreground">{item.label}</div>
+                    </GlassCard>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* How it Works Timeline */}
             <section id="how-it-works" className="py-20 px-4">
-              <div className="max-w-4xl mx-auto">
+              <div className="max-w-5xl mx-auto">
                 <motion.div
                   className="text-center mb-16"
                   initial={{ opacity: 0, y: 20 }}
@@ -376,50 +457,127 @@ export default function Landing() {
                     How SentryX Works
                   </h2>
                   <p className="text-xl text-muted-foreground">
-                    Advanced AI pipeline for comprehensive content analysis
+                    Collect → Analyze → Verify → Report
                   </p>
                 </motion.div>
 
-                <div className="space-y-8">
+                <div className="grid md:grid-cols-4 gap-6">
                   {[
-                    {
-                      step: "01",
-                      title: "Content Ingestion",
-                      description: "Submit text, URLs, images, or videos through our secure interface"
-                    },
-                    {
-                      step: "02", 
-                      title: "AI Analysis",
-                      description: "Multiple AI models analyze content for manipulation, bias, and factual accuracy"
-                    },
-                    {
-                      step: "03",
-                      title: "Source Verification",
-                      description: "Cross-reference claims with trusted databases and fact-checking sources"
-                    },
-                    {
-                      step: "04",
-                      title: "Results & Report",
-                      description: "Receive detailed analysis with credibility scores and actionable insights"
-                    }
-                  ].map((step, index) => (
+                    { step: "Collect", desc: "Securely ingest text, URLs, images, and videos." },
+                    { step: "Analyze", desc: "Run AI models for pattern, domain, and deepfake checks." },
+                    { step: "Verify", desc: "Cross-check with trusted sources and signals." },
+                    { step: "Report", desc: "Output a score, summary, and shareable report." },
+                  ].map((s, i) => (
                     <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
+                      key={i}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: index * 0.2 }}
+                      transition={{ delay: i * 0.1 }}
                     >
-                      <GlassCard className="flex items-center gap-6 p-8">
-                        <div className="text-4xl font-bold text-primary/50 min-w-[80px]">
-                          {step.step}
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-bold mb-2">{step.title}</h3>
-                          <p className="text-muted-foreground text-lg">{step.description}</p>
-                        </div>
+                      <GlassCard className="h-full text-center neon-border">
+                        <div className="text-3xl font-bold text-primary/70 mb-2">{String(i + 1).padStart(2, "0")}</div>
+                        <h3 className="text-xl font-semibold mb-2">{s.step}</h3>
+                        <p className="text-muted-foreground">{s.desc}</p>
                       </GlassCard>
                     </motion.div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Hackathon Pitch Section */}
+            <section id="pitch" className="py-20 px-4">
+              <div className="max-w-6xl mx-auto">
+                <motion.div
+                  className="text-center mb-14"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-4xl font-bold tracking-tight mb-4">Why SentryX</h2>
+                  <p className="text-xl text-muted-foreground">
+                    Built for impact. Designed to win hackathons.
+                  </p>
+                </motion.div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[
+                    {
+                      title: "Inspiration",
+                      desc: "Combating misinformation at scale with real-time, explainable AI.",
+                      color: "from-cyan-400/20 to-purple-400/20"
+                    },
+                    {
+                      title: "Challenges",
+                      desc: "Balancing speed, accuracy, and clarity with multi-modal inputs.",
+                      color: "from-purple-400/20 to-green-400/20"
+                    },
+                    {
+                      title: "Accomplishments",
+                      desc: "Unified pipeline: credibility scores, deepfake analysis, and sources.",
+                      color: "from-green-400/20 to-cyan-400/20"
+                    },
+                    {
+                      title: "What's Next",
+                      desc: "Browser extensions, public APIs, and verified publisher partnerships.",
+                      color: "from-cyan-400/20 to-purple-400/20"
+                    },
+                  ].map((item, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                    >
+                      <div className={`rounded-2xl p-6 glass-strong neon-border bg-gradient-to-br ${item.color}`}>
+                        <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+                        <p className="text-muted-foreground">{item.desc}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Team Section */}
+            <section id="team" className="py-20 px-4">
+              <div className="max-w-6xl mx-auto">
+                <motion.div
+                  className="text-center mb-12"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-4xl font-bold tracking-tight mb-4">Meet the Team</h2>
+                  <p className="text-xl text-muted-foreground">The minds behind the Sentinel</p>
+                </motion.div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[
+                    { name: "Atharva P.", role: "Founder / Engineer", img: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "https://vly.ai" },
+                    { name: "Member 2", role: "ML Researcher", img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "#" },
+                    { name: "Member 3", role: "Frontend Lead", img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "#" },
+                    { name: "Member 4", role: "Backend Lead", img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "#" },
+                  ].map((m, i) => (
+                    <GlassCard key={i} className="neon-border hover:scale-[1.02] transition-transform">
+                      <div className="overflow-hidden rounded-xl mb-4">
+                        <img src={m.img} alt={m.name} className="w-full h-44 object-cover" />
+                      </div>
+                      <h4 className="text-lg font-semibold">{m.name}</h4>
+                      <p className="text-sm text-muted-foreground mb-3">{m.role}</p>
+                      <div className="flex items-center gap-3">
+                        <Button variant="outline" size="icon" className="glass-card border-0" onClick={() => window.open(m.gh, "_blank")}>
+                          <Github className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" className="glass-card border-0" onClick={() => window.open(m.li, "_blank")}>
+                          <Linkedin className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" className="glass-card border-0" onClick={() => window.open(m.web, "_blank")}>
+                          <GlobeIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </GlassCard>
                   ))}
                 </div>
               </div>
@@ -440,6 +598,14 @@ export default function Landing() {
             </div>
             
             <div className="flex items-center gap-6">
+              <a
+                href="https://devpost.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Shield className="h-5 w-5" />
+              </a>
               <a
                 href="https://github.com"
                 target="_blank"

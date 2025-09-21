@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useAction } from "convex/react";
@@ -42,6 +43,9 @@ export default function Landing() {
   const [textInput, setTextInput] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [activeInputType, setActiveInputType] = useState<"url" | "text" | "image" | "video">("url");
+  const [unifiedInput, setUnifiedInput] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const createReport = useMutation(api.detectionReports.createReport);
   const analyzeContent = useAction(api.analysisActions.analyzeContent);
@@ -100,6 +104,62 @@ export default function Landing() {
   const resetAnalysis = () => {
     setCurrentReportId(null);
     setIsAnalyzing(false);
+  };
+
+  // Add: smart drop handler for drag-and-drop zone
+  const handleDropAnalyze = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    try {
+      // If files are dropped, we currently only support URLs (no direct file uploads yet)
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+          toast.info("Direct file uploads are not supported yet. Please paste an Image/Video URL instead.");
+          return;
+        }
+        toast.info("Only URLs and text are supported via drag & drop for now.");
+        return;
+      }
+
+      const text = e.dataTransfer.getData("text") || e.dataTransfer.getData("text/plain");
+      const trimmed = (text || "").trim();
+      if (!trimmed) {
+        toast.error("No content detected. Drop a URL or text to analyze.");
+        return;
+      }
+
+      // Heuristic: detect type from dropped text
+      const isUrl = /^https?:\/\//i.test(trimmed);
+      const isImageUrl = isUrl && /\.(png|jpe?g|gif|webp|svg)$/i.test(trimmed);
+      const isVideoUrl = isUrl && /\.(mp4|webm|mov|mkv|avi)$/i.test(trimmed);
+
+      if (isImageUrl) {
+        await handleAnalysis("image", trimmed);
+        return;
+      }
+      if (isVideoUrl) {
+        await handleAnalysis("video", trimmed);
+        return;
+      }
+      if (isUrl) {
+        await handleAnalysis("url", trimmed);
+        return;
+      }
+      // Otherwise treat as text
+      await handleAnalysis("text", trimmed);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to analyze dropped content.");
+    }
+  };
+
+  const handleDragState = (e: React.DragEvent<HTMLDivElement>, over: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(over);
   };
 
   return (
@@ -325,6 +385,116 @@ export default function Landing() {
                   </Button>
                 </div>
               </motion.div>
+            </section>
+
+            {/* Upload Options Section (Unified) */}
+            <section id="upload-options" className="py-16 px-4">
+              <div className="max-w-4xl mx-auto">
+                <motion.div
+                  className="text-center mb-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-4xl font-bold tracking-tight mb-3">
+                    Multi‑Modal Analyzer
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Paste URL, enter text, or drop content — SentryX will generate a full report.
+                  </p>
+                </motion.div>
+
+                <GlassCard className="neon-border">
+                  <div className="space-y-4">
+                    <Tabs value={activeInputType} onValueChange={(v) => setActiveInputType(v as any)}>
+                      <TabsList className="glass-card">
+                        <TabsTrigger value="url">Paste URL</TabsTrigger>
+                        <TabsTrigger value="text">Enter Text</TabsTrigger>
+                        <TabsTrigger value="image">Upload Image URL</TabsTrigger>
+                        <TabsTrigger value="video">Upload Video URL</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+
+                    {/* Drag & Drop Zone */}
+                    <div
+                      className={`rounded-xl border-2 border-dashed transition-all duration-200 glass-strong ${
+                        isDragOver ? "border-primary/70 bg-primary/10 glow-strong" : "border-white/15"
+                      }`}
+                      onDragOver={(e) => handleDragState(e, true)}
+                      onDragEnter={(e) => handleDragState(e, true)}
+                      onDragLeave={(e) => handleDragState(e, false)}
+                      onDrop={handleDropAnalyze}
+                    >
+                      <div className="p-5 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <span className="ring" />
+                          <span className="text-sm font-semibold">
+                            {isDragOver ? "Release to analyze" : "Drag & drop URL or text here to analyze"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Tip: Drop an article link to auto-detect. For media, paste an image/video URL using the tabs above.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Unified Input */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {activeInputType === "text" ? (
+                        <Textarea
+                          placeholder="Paste text to analyze..."
+                          className="glass-card border-0 min-h-[120px]"
+                          value={unifiedInput}
+                          onChange={(e) => setUnifiedInput(e.target.value)}
+                          disabled={isAnalyzing}
+                        />
+                      ) : (
+                        <Input
+                          placeholder={
+                            activeInputType === "url"
+                              ? "https://example.com/article"
+                              : activeInputType === "image"
+                              ? "https://example.com/image.jpg"
+                              : "https://example.com/video.mp4"
+                          }
+                          className="glass-card border-0"
+                          value={unifiedInput}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setUnifiedInput(e.target.value)}
+                          disabled={isAnalyzing}
+                        />
+                      )}
+                      <Button
+                        onClick={() => handleAnalysis(activeInputType, unifiedInput)}
+                        disabled={isAnalyzing || !unifiedInput.trim()}
+                        className="neon-button glow glass-strong border-0"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <span className="ring mr-2" />
+                            Scanning...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="mr-2 h-4 w-4" />
+                            Scan {activeInputType === "url" ? "URL" : activeInputType === "text" ? "Text" : activeInputType === "image" ? "Image" : "Video"}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Progress steps hint */}
+                    <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                      <span className="px-2 py-1 rounded-full glass-card">Collect</span>
+                      <span>→</span>
+                      <span className="px-2 py-1 rounded-full glass-card">Analyze</span>
+                      <span>→</span>
+                      <span className="px-2 py-1 rounded-full glass-card">Verify</span>
+                      <span>→</span>
+                      <span className="px-2 py-1 rounded-full glass-card">Report</span>
+                    </div>
+                  </div>
+                </GlassCard>
+              </div>
             </section>
 
             {/* Features Section */}

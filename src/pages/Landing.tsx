@@ -21,6 +21,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useAction } from "convex/react";
@@ -38,6 +39,9 @@ export default function Landing() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [liveDemoUrl, setLiveDemoUrl] = useState("");
   const [showDemoHint, setShowDemoHint] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
 
   const createReport = useMutation(api.detectionReports.createReport);
   const analyzeContent = useAction(api.analysisActions.analyzeContent);
@@ -151,8 +155,8 @@ export default function Landing() {
               <a href="#pitch" className="text-muted-foreground hover:text-foreground transition-colors">
                 Pitch
               </a>
-              <a href="#team" className="text-muted-foreground hover:text-foreground transition-colors">
-                Team
+              <a href="#multi-modal" className="text-muted-foreground hover:text-foreground transition-colors">
+                Multi-Modal
               </a>
               <Button
                 variant="ghost"
@@ -209,8 +213,8 @@ export default function Landing() {
               <a href="#pitch" className="block text-muted-foreground hover:text-foreground transition-colors">
                 Pitch
               </a>
-              <a href="#team" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Team
+              <a href="#multi-modal" className="block text-muted-foreground hover:text-foreground transition-colors">
+                Multi-Modal
               </a>
               <Button
                 variant="ghost"
@@ -557,8 +561,8 @@ export default function Landing() {
               </div>
             </section>
 
-            {/* Team Section */}
-            <section id="team" className="py-20 px-4">
+            {/* Multi-Modal Inputs Section */}
+            <section id="multi-modal" className="py-20 px-4">
               <div className="max-w-6xl mx-auto">
                 <motion.div
                   className="text-center mb-12"
@@ -566,36 +570,84 @@ export default function Landing() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                 >
-                  <h2 className="text-4xl font-bold tracking-tight mb-4">Meet the Team</h2>
-                  <p className="text-xl text-muted-foreground">The minds behind the Sentinel</p>
+                  <h2 className="text-4xl font-bold tracking-tight mb-4">Analyze Any Content Type</h2>
+                  <p className="text-xl text-muted-foreground">
+                    Paste text, image URL, or video URL — SentryX will generate a full report.
+                  </p>
                 </motion.div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[
-                    { name: "Atharva P.", role: "Founder / Engineer", img: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "https://vly.ai" },
-                    { name: "Member 2", role: "ML Researcher", img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "#" },
-                    { name: "Member 3", role: "Frontend Lead", img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "#" },
-                    { name: "Member 4", role: "Backend Lead", img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=400&auto=format&fit=crop", gh: "https://github.com", li: "https://linkedin.com", web: "#" },
-                  ].map((m, i) => (
-                    <GlassCard key={i} className="neon-border hover:scale-[1.02] transition-transform">
-                      <div className="overflow-hidden rounded-xl mb-4">
-                        <img src={m.img} alt={m.name} className="w-full h-44 object-cover" />
-                      </div>
-                      <h4 className="text-lg font-semibold">{m.name}</h4>
-                      <p className="text-sm text-muted-foreground mb-3">{m.role}</p>
-                      <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" className="glass-card border-0" onClick={() => window.open(m.gh, "_blank")}>
-                          <Github className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" className="glass-card border-0" onClick={() => window.open(m.li, "_blank")}>
-                          <Linkedin className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" className="glass-card border-0" onClick={() => window.open(m.web, "_blank")}>
-                          <GlobeIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </GlassCard>
-                  ))}
+                <div className="grid md:grid-cols-3 gap-6">
+                  {/* Text Input */}
+                  <GlassCard className="neon-border">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold">Text</div>
+                      <Textarea
+                        placeholder="Paste text to analyze..."
+                        className="glass-card border-0 min-h-[140px]"
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        disabled={isAnalyzing}
+                      />
+                      <Button
+                        onClick={() => handleAnalysis("text", textInput)}
+                        disabled={isAnalyzing || !textInput.trim()}
+                        className="neon-button glow glass-strong border-0 w-full"
+                      >
+                        {isAnalyzing ? "Scanning..." : "Scan Text"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Tip: Include the main paragraph or claim for fastest results.
+                      </p>
+                    </div>
+                  </GlassCard>
+
+                  {/* Image URL */}
+                  <GlassCard className="neon-border">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold">Image URL</div>
+                      <Input
+                        placeholder="https://example.com/image.jpg"
+                        className="glass-card border-0"
+                        value={imageUrl}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setImageUrl(e.target.value)}
+                        disabled={isAnalyzing}
+                      />
+                      <Button
+                        onClick={() => handleAnalysis("image", imageUrl)}
+                        disabled={isAnalyzing || !imageUrl.trim()}
+                        className="neon-button glow glass-strong border-0 w-full"
+                      >
+                        {isAnalyzing ? "Scanning..." : "Scan Image"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Checks for manipulation signs and returns a deepfake status.
+                      </p>
+                    </div>
+                  </GlassCard>
+
+                  {/* Video URL */}
+                  <GlassCard className="neon-border">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold">Video URL</div>
+                      <Input
+                        placeholder="https://example.com/video.mp4"
+                        className="glass-card border-0"
+                        value={videoUrl}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setVideoUrl(e.target.value)}
+                        disabled={isAnalyzing}
+                      />
+                      <Button
+                        onClick={() => handleAnalysis("video", videoUrl)}
+                        disabled={isAnalyzing || !videoUrl.trim()}
+                        className="neon-button glow glass-strong border-0 w-full"
+                      >
+                        {isAnalyzing ? "Scanning..." : "Scan Video"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Runs frame checks and reports deepfake likelihood with findings.
+                      </p>
+                    </div>
+                  </GlassCard>
                 </div>
               </div>
             </section>

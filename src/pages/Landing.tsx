@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   Sun,
-  Moon
+  Moon,
+  Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, type ChangeEvent } from "react";
@@ -104,7 +105,23 @@ export default function Landing() {
       <div className="gradient-orb gradient-orb-1" />
       <div className="gradient-orb gradient-orb-2" />
       <div className="gradient-orb gradient-orb-3" />
-      
+
+      {/* Live Scan Overlay */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <GlassCard variant="strong" className="w-[340px] text-center neon-border">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <span className="ring" />
+                <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+              </div>
+              <div className="text-lg font-semibold">Scanning content...</div>
+              <p className="text-sm text-muted-foreground">AI nodes connecting, verifying sources, detecting deepfakes</p>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
       {/* Navigation */}
       <motion.nav
         className="sticky top-0 backdrop-blur-md bg-black/10 border-b border-white/10 z-50"

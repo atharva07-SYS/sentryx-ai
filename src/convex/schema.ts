@@ -52,6 +52,14 @@ const schema = defineSchema(
       summary: v.string(),
       processingTime: v.number(),
       status: v.union(v.literal("processing"), v.literal("completed"), v.literal("failed")),
+      confidenceBreakdown: v.optional(v.object({
+        trusted: v.number(),
+        neutral: v.number(),
+        suspicious: v.number(),
+      })),
+      explainability: v.optional(v.string()),
+      recommendations: v.optional(v.array(v.string())),
+      frameFindings: v.optional(v.array(v.string())),
     }).index("by_user", ["userId"])
       .index("by_status", ["status"]),
 

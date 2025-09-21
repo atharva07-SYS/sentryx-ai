@@ -16,6 +16,10 @@ import {
   XCircle
 } from "lucide-react";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface AnalysisResultsProps {
   report: {
@@ -37,6 +41,14 @@ interface AnalysisResultsProps {
     summary: string;
     processingTime: number;
     status: string;
+    confidenceBreakdown?: {
+      trusted: number;
+      neutral: number;
+      suspicious: number;
+    };
+    explainability?: string;
+    recommendations?: string[];
+    frameFindings?: string[];
   };
 }
 
@@ -60,6 +72,79 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
     URL.revokeObjectURL(url);
     
     toast.success("Report downloaded successfully");
+  };
+
+  const handleExportPdf = () => {
+    const win = window.open("", "_blank", "width=900,height=1200");
+    if (!win) return;
+    const doc = `
+      <html>
+        <head>
+          <title>SentryX Report</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            body { font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; padding: 24px; color: #111; }
+            h1,h2,h3 { margin: 0 0 8px; }
+            .muted { color: #444; }
+            .section { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+            .row { display: flex; gap: 16px; align-items: center; }
+            .badge { display:inline-block; border:1px solid #aaa; border-radius:9999px; padding:2px 10px; font-size:12px; }
+            ul { margin: 8px 0 0 18px; }
+          </style>
+        </head>
+        <body>
+          <h1>SentryX Analysis Report</h1>
+          <div class="muted">Report ID: ${report._id} • Processed in ${report.processingTime}ms</div>
+          <div class="section">
+            <h2>Trust Score: ${report.credibilityScore}/100</h2>
+            <div class="muted">Input (${report.inputType}): ${report.inputContent}</div>
+          </div>
+          <div class="section">
+            <h3>Summary</h3>
+            <p>${report.summary}</p>
+          </div>
+          ${report.deepfakeStatus ? `
+          <div class="section">
+            <h3>Deepfake Check</h3>
+            <div>Status: ${report.deepfakeStatus}</div>
+            ${report.frameFindings && report.frameFindings.length ? `<ul>${report.frameFindings.map(f => `<li>${f}</li>`).join("")}</ul>` : ""}
+          </div>` : ""}
+          ${report.flaggedClaims.length ? `
+          <div class="section">
+            <h3>Flagged Claims</h3>
+            <ul>
+              ${report.flaggedClaims.map(c => `<li><strong>${c.claim}</strong> — ${Math.round(c.confidence*100)}% confidence • Sources: ${c.sources.join(", ")}</li>`).join("")}
+            </ul>
+          </div>` : ""}
+          ${report.verifiedSources.length ? `
+          <div class="section">
+            <h3>Verified Sources</h3>
+            <ul>
+              ${report.verifiedSources.map(s => `<li><strong>${s.title}</strong> — ${Math.round(s.credibility*100)}% credible — ${s.url}</li>`).join("")}
+            </ul>
+          </div>` : ""}
+          ${report.confidenceBreakdown ? `
+          <div class="section">
+            <h3>Confidence Breakdown</h3>
+            <div>Trusted: ${Math.round(report.confidenceBreakdown.trusted*100)}% • Neutral: ${Math.round(report.confidenceBreakdown.neutral*100)}% • Suspicious: ${Math.round(report.confidenceBreakdown.suspicious*100)}%</div>
+          </div>` : ""}
+          ${report.explainability ? `
+          <div class="section">
+            <h3>Explainability</h3>
+            <p>${report.explainability}</p>
+          </div>` : ""}
+          ${report.recommendations && report.recommendations.length ? `
+          <div class="section">
+            <h3>Recommendations</h3>
+            <ul>${report.recommendations.map(r => `<li>${r}</li>`).join("")}</ul>
+          </div>` : ""}
+        </body>
+      </html>
+    `;
+    win.document.write(doc);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 100);
   };
 
   const handleShare = async () => {
@@ -98,155 +183,253 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
   };
 
   return (
-    <motion.div
-      className="w-full max-w-4xl space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      {/* Header with Score */}
-      <GlassCard variant="strong" className="text-center">
-        <div className="grid md:grid-cols-3 gap-6 items-center">
-          <div>
-            <CredibilityScore score={report.credibilityScore} size="lg" />
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Analysis Complete</span>
+    <TooltipProvider>
+      <motion.div
+        className="w-full max-w-4xl space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* Header with Score and Actions */}
+        <GlassCard variant="strong" className="text-center">
+          <div className="grid md:grid-cols-3 gap-6 items-center">
+            <div className="space-y-3">
+              <CredibilityScore score={report.credibilityScore} size="lg" />
+              <Progress value={report.credibilityScore} className="h-2" />
+              <div className="text-xs text-muted-foreground">Shield charging...</div>
             </div>
-            
-            {report.deepfakeStatus && (
+
+            <div className="space-y-3">
               <div className="flex items-center justify-center gap-2">
-                {getDeepfakeIcon(report.deepfakeStatus)}
-                <span className="text-sm font-medium">
-                  {getDeepfakeLabel(report.deepfakeStatus)}
-                </span>
+                <Shield className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Analysis Complete</span>
               </div>
-            )}
-            
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Processed in {report.processingTime}ms</span>
+              {report.deepfakeStatus && (
+                <div className="flex items-center justify-center gap-2">
+                  {getDeepfakeIcon(report.deepfakeStatus)}
+                  <span className="text-sm font-medium">
+                    {getDeepfakeLabel(report.deepfakeStatus)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>Processed in {report.processingTime}ms</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleDownload} variant="outline" className="glass-card border-0">
+                <Download className="mr-2 h-4 w-4" />
+                Download (JSON)
+              </Button>
+              <Button onClick={handleExportPdf} variant="outline" className="glass-card border-0">
+                <Download className="mr-2 h-4 w-4" />
+                Export PDF
+              </Button>
+              <Button onClick={handleShare} variant="outline" className="glass-card border-0">
+                <Share2 className="mr-2 h-4 w-4" />
+                Share Results
+              </Button>
             </div>
           </div>
-          
-          <div className="flex flex-col gap-2">
-            <Button onClick={handleDownload} variant="outline" className="glass-card border-0">
-              <Download className="mr-2 h-4 w-4" />
-              Download Report
-            </Button>
-            <Button onClick={handleShare} variant="outline" className="glass-card border-0">
-              <Share2 className="mr-2 h-4 w-4" />
-              Share Results
-            </Button>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Summary */}
-      <GlassCard>
-        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          Analysis Summary
-        </h3>
-        <p className="text-muted-foreground leading-relaxed">{report.summary}</p>
-      </GlassCard>
-
-      {/* Flagged Claims */}
-      {report.flaggedClaims.length > 0 && (
-        <GlassCard>
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            Flagged Claims ({report.flaggedClaims.length})
-          </h3>
-          <div className="space-y-4">
-            {report.flaggedClaims.map((claim, index) => (
-              <motion.div
-                key={index}
-                className="glass-card p-4 rounded-lg"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="font-medium text-red-300 mb-2">{claim.claim}</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="glass-card border-0">
-                        {Math.round(claim.confidence * 100)}% confidence
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Sources: {claim.sources.join(", ")}
-                      </span>
-                    </div>
-                  </div>
-                  <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                </div>
-              </motion.div>
-            ))}
-          </div>
         </GlassCard>
-      )}
 
-      {/* Verified Sources */}
-      {report.verifiedSources.length > 0 && (
+        {/* Tabbed Report */}
         <GlassCard>
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-400" />
-            Verified Sources ({report.verifiedSources.length})
-          </h3>
-          <div className="space-y-3">
-            {report.verifiedSources.map((source, index) => (
-              <motion.div
-                key={index}
-                className="glass-card p-4 rounded-lg"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-green-300 mb-1">{source.title}</h4>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="glass-card border-0">
-                        {Math.round(source.credibility * 100)}% credible
-                      </Badge>
-                    </div>
+          <Tabs defaultValue="summary" className="w-full">
+            <TabsList className="glass-card">
+              <TabsTrigger value="summary">Summary</TabsTrigger>
+              <TabsTrigger value="sources">Sources</TabsTrigger>
+              <TabsTrigger value="deepfake">Deepfake Check</TabsTrigger>
+              <TabsTrigger value="insights">Insights</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="summary" className="mt-6 space-y-4">
+              <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                Summary
+              </h3>
+              <p className="text-muted-foreground leading-relaxed">{report.summary}</p>
+
+              {report.confidenceBreakdown && (
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h4 className="font-semibold">Confidence Breakdown</h4>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Trusted, Neutral, and Suspicious proportions used to derive Trust Score.
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="glass-card border-0"
-                    onClick={() => window.open(source.url, '_blank')}
+                  <div className="w-full h-3 rounded-full overflow-hidden glass-card border-0">
+                    <div
+                      className="h-3 bg-green-400/70"
+                      style={{ width: `${Math.round((report.confidenceBreakdown.trusted ?? 0) * 100)}%` }}
+                    />
+                    <div
+                      className="h-3 bg-yellow-400/70"
+                      style={{ width: `${Math.round((report.confidenceBreakdown.neutral ?? 0) * 100)}%` }}
+                    />
+                    <div
+                      className="h-3 bg-red-400/70"
+                      style={{ width: `${Math.round((report.confidenceBreakdown.suspicious ?? 0) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Trusted: {Math.round((report.confidenceBreakdown.trusted ?? 0)*100)}%</span>
+                    <span>Neutral: {Math.round((report.confidenceBreakdown.neutral ?? 0)*100)}%</span>
+                    <span>Suspicious: {Math.round((report.confidenceBreakdown.suspicious ?? 0)*100)}%</span>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="sources" className="mt-6 space-y-4">
+              <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-400" />
+                Verified Sources ({report.verifiedSources.length})
+              </h3>
+              <div className="space-y-3">
+                {report.verifiedSources.map((source, index) => (
+                  <motion.div
+                    key={index}
+                    className="glass-card p-4 rounded-lg"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
                   >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-green-300 mb-1">{source.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="glass-card border-0">
+                            {Math.round(source.credibility * 100)}% credible
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="glass-card border-0"
+                        onClick={() => window.open(source.url, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="deepfake" className="mt-6 space-y-4">
+              <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <Eye className="h-5 w-5 text-primary" />
+                Deepfake Check
+              </h3>
+              <div className="flex items-center gap-3 text-sm">
+                {getDeepfakeIcon(report.deepfakeStatus)}
+                <span className="font-medium">{getDeepfakeLabel(report.deepfakeStatus)}</span>
+              </div>
+              {report.frameFindings && report.frameFindings.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="font-semibold">Frame Analysis</h4>
+                  <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                    {report.frameFindings.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
                 </div>
-              </motion.div>
-            ))}
+              )}
+            </TabsContent>
+
+            <TabsContent value="insights" className="mt-6 space-y-6">
+              {report.flaggedClaims.length > 0 && (
+                <div>
+                  <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                    Flagged Claims ({report.flaggedClaims.length})
+                  </h3>
+                  <div className="space-y-4">
+                    {report.flaggedClaims.map((claim, index) => (
+                      <motion.div
+                        key={index}
+                        className="glass-card p-4 rounded-lg"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="font-medium text-red-300 mb-2 cursor-pointer">
+                                  {claim.claim}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Why flagged: language patterns, missing citations, or conflicting sources.
+                              </TooltipContent>
+                            </Tooltip>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="glass-card border-0">
+                                {Math.round(claim.confidence * 100)}% confidence
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                Sources: {claim.sources.join(", ")}
+                              </span>
+                            </div>
+                          </div>
+                          <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0" />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(report.explainability || (report.recommendations && report.recommendations.length)) && (
+                <div>
+                  <Separator className="my-4" />
+                  <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Explainability & Recommendations
+                  </h3>
+                  {report.explainability && (
+                    <p className="text-muted-foreground leading-relaxed mb-3">
+                      {report.explainability}
+                    </p>
+                  )}
+                  {report.recommendations && report.recommendations.length > 0 && (
+                    <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                      {report.recommendations.map((r, i) => <li key={i}>{r}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </GlassCard>
+
+        {/* Input Preview */}
+        <GlassCard>
+          <h3 className="text-xl font-bold mb-4">Analyzed Content</h3>
+          <div className="glass-card p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="glass-card border-0 capitalize">
+                {report.inputType}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground break-all">
+              {report.inputContent.length > 200 
+                ? `${report.inputContent.substring(0, 200)}...` 
+                : report.inputContent
+              }
+            </p>
           </div>
         </GlassCard>
-      )}
-
-      {/* Input Preview */}
-      <GlassCard>
-        <h3 className="text-xl font-bold mb-4">Analyzed Content</h3>
-        <div className="glass-card p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className="glass-card border-0 capitalize">
-              {report.inputType}
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground break-all">
-            {report.inputContent.length > 200 
-              ? `${report.inputContent.substring(0, 200)}...` 
-              : report.inputContent
-            }
-          </p>
-        </div>
-      </GlassCard>
-    </motion.div>
+      </motion.div>
+    </TooltipProvider>
   );
 }

@@ -51,7 +51,15 @@ export const analyzeContent = action({
 });
 
 async function performAnalysis(inputType: string, content: string) {
-  // Simulate processing delay
+  // Try OpenRouter (if configured) for higher-fidelity results
+  try {
+    const res = await callOpenRouter(inputType, content);
+    if (res) return res;
+  } catch (err) {
+    console.warn("OpenRouter analysis failed, falling back to mock:", err);
+  }
+
+  // Fallback to mock analysis
   await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
   
   // Mock analysis results based on input type
@@ -64,6 +72,109 @@ async function performAnalysis(inputType: string, content: string) {
   }
   
   throw new Error("Unsupported input type");
+}
+
+// Add: OpenRouter call for structured analysis
+async function callOpenRouter(inputType: string, content: string) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    // No key configured; skip to fallback
+    return null;
+  }
+
+  // Choose a solid general model (vision-capable for image/video URLs is okay via description)
+  const model = "openai/gpt-4o-mini";
+
+  const systemPrompt =
+    "You are SentryX, an AI specializing in misinformation and deepfake detection. " +
+    "Analyze the provided input and return STRICT JSON ONLY, matching this TypeScript shape exactly: " +
+    "{ credibilityScore: number (0-100), deepfakeStatus?: \"real\"|\"fake\"|\"uncertain\", flaggedClaims: Array<{ claim: string, confidence: number (0-1), sources: string[] }>, verifiedSources: Array<{ title: string, url: string, credibility: number (0-1) }>, summary: string }. " +
+    "Rules: (1) No extra text or formatting. (2) If inputType is image or video with a URL, infer likely manipulation signals and set deepfakeStatus if applicable. " +
+    "(3) For URLs, assess domain reputation and content signals. (4) For text, flag sensational patterns and unsupported claims. " +
+    "(5) Make summary concise and useful.";
+
+  const userPrompt = `Input Type: ${inputType}
+Content: ${content}
+
+Output STRICT JSON ONLY as specified.`;
+
+  const body = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+  };
+
+  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://sentryx.app", // optional; replace with your site if desired
+      "X-Title": "SentryX AI",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`OpenRouter HTTP ${resp.status}: ${text}`);
+  }
+
+  const data = await resp.json();
+
+  // Extract the model's JSON content
+  const contentText: string | undefined =
+    data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.message?.[0]?.content;
+
+  if (!contentText || typeof contentText !== "string") {
+    throw new Error("OpenRouter returned invalid content");
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(contentText);
+  } catch (e) {
+    throw new Error("Failed to parse JSON from OpenRouter");
+  }
+
+  // Validate and coerce minimal fields to our schema expectations
+  const credibilityScore = clampNumber(parsed.credibilityScore, 0, 100, 60);
+  const deepfakeStatus = normalizeDeepfakeStatus(parsed.deepfakeStatus);
+  const flaggedClaims = Array.isArray(parsed.flaggedClaims) ? parsed.flaggedClaims.map((c: any) => ({
+    claim: String(c?.claim ?? ""),
+    confidence: clampNumber(Number(c?.confidence ?? 0.6), 0, 1, 0.6),
+    sources: Array.isArray(c?.sources) ? c.sources.map((s: any) => String(s)) : [],
+  })) : [];
+  const verifiedSources = Array.isArray(parsed.verifiedSources) ? parsed.verifiedSources.map((s: any) => ({
+    title: String(s?.title ?? "Source"),
+    url: String(s?.url ?? ""),
+    credibility: clampNumber(Number(s?.credibility ?? 0.8), 0, 1, 0.8),
+  })) : [];
+  const summary = String(parsed.summary ?? "Analysis complete.");
+
+  return {
+    credibilityScore,
+    deepfakeStatus,
+    flaggedClaims,
+    verifiedSources,
+    summary,
+  };
+}
+
+function clampNumber(n: number, min: number, max: number, fallback: number) {
+  if (typeof n !== "number" || Number.isNaN(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function normalizeDeepfakeStatus(s: any): "real" | "fake" | "uncertain" | undefined {
+  if (!s) return undefined;
+  const v = String(s).toLowerCase();
+  if (v === "real" || v === "fake" || v === "uncertain") return v;
+  return undefined;
 }
 
 function analyzeText(text: string) {

@@ -32,12 +32,43 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // add other tables here
+    // SentryX Detection Reports
+    detectionReports: defineTable({
+      userId: v.optional(v.id("users")),
+      inputType: v.union(v.literal("url"), v.literal("text"), v.literal("image"), v.literal("video")),
+      inputContent: v.string(),
+      credibilityScore: v.number(),
+      deepfakeStatus: v.optional(v.union(v.literal("real"), v.literal("fake"), v.literal("uncertain"))),
+      flaggedClaims: v.array(v.object({
+        claim: v.string(),
+        confidence: v.number(),
+        sources: v.array(v.string())
+      })),
+      verifiedSources: v.array(v.object({
+        title: v.string(),
+        url: v.string(),
+        credibility: v.number()
+      })),
+      summary: v.string(),
+      processingTime: v.number(),
+      status: v.union(v.literal("processing"), v.literal("completed"), v.literal("failed")),
+    }).index("by_user", ["userId"])
+      .index("by_status", ["status"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // Analysis Cache for performance
+    analysisCache: defineTable({
+      contentHash: v.string(),
+      inputType: v.string(),
+      result: v.object({
+        credibilityScore: v.number(),
+        deepfakeStatus: v.optional(v.string()),
+        flaggedClaims: v.array(v.any()),
+        verifiedSources: v.array(v.any()),
+        summary: v.string()
+      }),
+      expiresAt: v.number(),
+    }).index("by_hash", ["contentHash"])
+      .index("by_expiry", ["expiresAt"]),
   },
   {
     schemaValidation: false,

@@ -164,6 +164,12 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
     }
   };
 
+  // Add: helpers for new UI
+  const trustedSourcesCount = report.verifiedSources.filter(s => (s.credibility ?? 0) >= 0.7).length;
+  const totalSources = report.verifiedSources.length;
+  const suspiciousClaims = report.flaggedClaims.length;
+  const verdictSafe = report.credibilityScore >= 70 && suspiciousClaims <= 1;
+
   const getDeepfakeIcon = (status?: string) => {
     switch (status) {
       case "real": return <CheckCircle className="h-5 w-5 text-green-400" />;
@@ -194,15 +200,19 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
         <GlassCard variant="strong" className="text-center">
           <div className="grid md:grid-cols-3 gap-6 items-center">
             <div className="space-y-3">
-              <CredibilityScore score={report.credibilityScore} size="lg" />
+              <CredibilityScore score={report.credibilityScore} size="lg" gauge />
               <Progress value={report.credibilityScore} className="h-2" />
-              <div className="text-xs text-muted-foreground">Shield charging...</div>
+              <div className="text-xs text-muted-foreground">
+                Shield charging...
+              </div>
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2">
+              <div className={`flex items-center justify-center gap-2 ${report.credibilityScore >= 70 ? "glow-strong" : "glow"}`}>
                 <Shield className="h-5 w-5 text-primary" />
-                <span className="font-semibold">Analysis Complete</span>
+                <span className="font-semibold">
+                  {report.credibilityScore >= 70 ? "🟢 Trustworthy" : report.credibilityScore >= 40 ? "🟡 Mixed Signals" : "🔴 Doubtful"}
+                </span>
               </div>
               {report.deepfakeStatus && (
                 <div className="flex items-center justify-center gap-2">
@@ -235,22 +245,97 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
           </div>
         </GlassCard>
 
+        {/* Add: Chat-Style Assistant Summary */}
+        <GlassCard className="neon-border">
+          <div className="space-y-2 text-left">
+            <div className="flex items-center gap-2 font-semibold">
+              <span>🛡️ SentryX</span>
+              <Badge variant="outline" className="glass-card border-0">AI Guardian</Badge>
+            </div>
+            <p className="text-sm leading-relaxed">
+              I scanned this content. {report.credibilityScore >= 70 ? "Most of it checks out ✅" : "There are concerns ⚠️"} — here's what stood out:
+            </p>
+            <ul className="list-disc pl-5 text-sm text-muted-foreground">
+              <li>{trustedSourcesCount} trusted references found{totalSources > 0 ? ` out of ${totalSources} sources` : ""}.</li>
+              <li>{suspiciousClaims} claim(s) need attention.</li>
+              {report.deepfakeStatus && <li>Deepfake check: {getDeepfakeLabel(report.deepfakeStatus)}.</li>}
+            </ul>
+          </div>
+        </GlassCard>
+
         {/* Tabbed Report */}
         <GlassCard>
           <Tabs defaultValue="summary" className="w-full">
             <TabsList className="glass-card">
               <TabsTrigger value="summary">Summary</TabsTrigger>
-              <TabsTrigger value="sources">Sources</TabsTrigger>
+              <TabsTrigger value="proof">Proof</TabsTrigger>
               <TabsTrigger value="deepfake">Deepfake Check</TabsTrigger>
-              <TabsTrigger value="insights">Insights</TabsTrigger>
+              <TabsTrigger value="recommendation">Recommendation</TabsTrigger>
             </TabsList>
 
             <TabsContent value="summary" className="mt-6 space-y-4">
               <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" />
-                Summary
+                Verdict
               </h3>
               <p className="text-muted-foreground leading-relaxed">{report.summary}</p>
+
+              {/* Add: Color-coded highlight flip cards */}
+              <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                <div className="flip">
+                  <div className="flip-inner rounded-xl neon-border">
+                    <div className="flip-face glass-strong rounded-xl p-4 h-full">
+                      <div className="text-green-300 font-semibold mb-1">✅ Verified Claims</div>
+                      <p className="text-sm text-muted-foreground">Strong corroboration from trusted sources</p>
+                    </div>
+                    <div className="flip-face flip-back glass-strong rounded-xl p-4 h-full absolute inset-0">
+                      <p className="text-sm">
+                        {trustedSourcesCount} trusted sources (≥70% credibility){totalSources ? ` out of ${totalSources} total` : ""}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flip">
+                  <div className="flip-inner rounded-xl neon-border">
+                    <div className="flip-face glass-strong rounded-xl p-4 h-full">
+                      <div className="text-yellow-300 font-semibold mb-1">⚠️ Suspicious Gaps</div>
+                      <p className="text-sm text-muted-foreground">Claims lacking citations or evidence</p>
+                    </div>
+                    <div className="flip-face flip-back glass-strong rounded-xl p-4 h-full absolute inset-0">
+                      <p className="text-sm">{suspiciousClaims} flagged claim(s) requiring verification.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flip">
+                  <div className="flip-inner rounded-xl neon-border">
+                    <div className="flip-face glass-strong rounded-xl p-4 h-full">
+                      <div className="text-cyan-300 font-semibold mb-1">🔗 Trusted Sources Found</div>
+                      <p className="text-sm text-muted-foreground">Reputable outlets referenced</p>
+                    </div>
+                    <div className="flip-face flip-back glass-strong rounded-xl p-4 h-full absolute inset-0">
+                      <p className="text-sm">
+                        Examples: {report.verifiedSources.slice(0, 2).map(s => s.title).join(", ") || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flip">
+                  <div className="flip-inner rounded-xl neon-border">
+                    <div className="flip-face glass-strong rounded-xl p-4 h-full">
+                      <div className="text-red-300 font-semibold mb-1">🚨 Potential Misinformation</div>
+                      <p className="text-sm text-muted-foreground">Emotionally manipulative or clickbait patterns</p>
+                    </div>
+                    <div className="flip-face flip-back glass-strong rounded-xl p-4 h-full absolute inset-0">
+                      <p className="text-sm">
+                        {suspiciousClaims > 0 ? "Some language and unsupported claims detected." : "No strong manipulation signals found."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {report.confidenceBreakdown && (
                 <div className="mt-4">
@@ -265,7 +350,7 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <div className="w-full h-3 rounded-full overflow-hidden glass-card border-0">
+                  <div className="w-full h-3 rounded-full overflow-hidden glass-card border-0 flex">
                     <div
                       className="h-3 bg-green-400/70"
                       style={{ width: `${Math.round((report.confidenceBreakdown.trusted ?? 0) * 100)}%` }}
@@ -288,10 +373,11 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
               )}
             </TabsContent>
 
-            <TabsContent value="sources" className="mt-6 space-y-4">
+            {/* Proof tab (formerly Sources) */}
+            <TabsContent value="proof" className="mt-6 space-y-4">
               <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-400" />
-                Verified Sources ({report.verifiedSources.length})
+                Proof ({report.verifiedSources.length})
               </h3>
               <div className="space-y-3">
                 {report.verifiedSources.map((source, index) => (
@@ -344,7 +430,25 @@ export function AnalysisResults({ report }: AnalysisResultsProps) {
               )}
             </TabsContent>
 
-            <TabsContent value="insights" className="mt-6 space-y-6">
+            {/* Recommendation tab (combines verdict + flagged + explainability + suggestions) */}
+            <TabsContent value="recommendation" className="mt-6 space-y-6">
+              <GlassCard className="neon-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Final Verdict
+                  </div>
+                  <Badge variant="outline" className="glass-card border-0">
+                    {verdictSafe ? "Safe to read" : "Don't trust yet"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {verdictSafe
+                    ? "🟢 70%+ Truth score and minimal red flags. You can read this with confidence."
+                    : "🔴 Score or flags suggest caution. Verify key claims before sharing."}
+                </p>
+              </GlassCard>
+
               {report.flaggedClaims.length > 0 && (
                 <div>
                   <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
